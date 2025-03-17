@@ -5,12 +5,13 @@ bl_info = {
     "blender": (2, 80, 0),
     "category": "Object",
     "author": "Umar Razzaq",
-    "version": (1, 1),
+    "version": (1, 2),
     "description": "Copy and Paste object transforms, modifiers, materials, constraints, parenting, and custom properties.",
 }
 
 # Storage for copied values
 copied_data = {
+    "transform": None,
     "location": None,
     "rotation": None,
     "scale": None,
@@ -24,7 +25,11 @@ copied_data = {
 # Copy-Paste Functions
 def copy_data(obj, data_type):
     if obj:
-        if data_type in ["location", "rotation", "scale"]:
+        if data_type == "transform":
+            copied_data["location"] = obj.location.copy()
+            copied_data["rotation"] = obj.rotation_euler.copy()
+            copied_data["scale"] = obj.scale.copy()
+        elif data_type in ["location", "rotation", "scale"]:
             copied_data[data_type] = getattr(obj, data_type).copy()
         elif data_type == "modifiers":
             copied_data[data_type] = [(mod.name, mod.type) for mod in obj.modifiers]
@@ -42,7 +47,11 @@ def copy_data(obj, data_type):
 
 def paste_data(obj, data_type):
     if obj and copied_data[data_type] is not None:
-        if data_type in ["location", "rotation", "scale"]:
+        if data_type == "transform":
+            obj.location = copied_data["location"]
+            obj.rotation_euler = copied_data["rotation"]
+            obj.scale = copied_data["scale"]
+        elif data_type in ["location", "rotation", "scale"]:
             setattr(obj, data_type, copied_data[data_type])
         elif data_type == "modifiers":
             for mod_name, mod_type in copied_data[data_type]:
@@ -102,6 +111,10 @@ class VIEW3D_PT_CopyPastePanel(bpy.types.Panel):
         # Transforms Section
         box = layout.box()
         box.label(text="Transforms", icon="OBJECT_DATA")
+        row = box.row()
+        row.operator("object.copy_data", text="Copy Full Transform").data_type = "transform"
+        row.operator("object.paste_data", text="Paste Full Transform").data_type = "transform"
+
         row = box.row()
         row.operator("object.copy_data", text="Copy Location").data_type = "location"
         row.operator("object.paste_data", text="Paste Location").data_type = "location"

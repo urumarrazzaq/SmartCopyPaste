@@ -14,11 +14,14 @@ copied_data = {
     "transform": None,
     "location": None,
     "rotation": None,
+    "rotation_mode": None,  # Store rotation mode
     "scale": None,
     "modifiers": [],
     "materials": [],
     "constraints": [],
     "parent": None,
+    "parent_type": None,
+    "parent_inverse": None,
     "custom_properties": {},
 }
 
@@ -27,9 +30,24 @@ def copy_data(obj, data_type):
     if obj:
         if data_type == "transform":
             copied_data["location"] = obj.location.copy()
-            copied_data["rotation"] = obj.rotation_euler.copy()
+            copied_data["rotation_mode"] = obj.rotation_mode  # Store rotation mode
+            if obj.rotation_mode == 'QUATERNION':
+                copied_data["rotation"] = obj.rotation_quaternion.copy()
+            elif obj.rotation_mode == 'AXIS_ANGLE':
+                copied_data["rotation"] = obj.rotation_axis_angle.copy()
+            else:  # Euler
+                copied_data["rotation"] = obj.rotation_euler.copy()
             copied_data["scale"] = obj.scale.copy()
-        elif data_type in ["location", "rotation", "scale"]:
+            copied_data["transform"] = True  # Mark transform as copied
+        elif data_type == "rotation":
+            copied_data["rotation_mode"] = obj.rotation_mode  # Store rotation mode
+            if obj.rotation_mode == 'QUATERNION':
+                copied_data["rotation"] = obj.rotation_quaternion.copy()
+            elif obj.rotation_mode == 'AXIS_ANGLE':
+                copied_data["rotation"] = obj.rotation_axis_angle.copy()
+            else:  # Euler
+                copied_data["rotation"] = obj.rotation_euler.copy()
+        elif data_type in ["location", "scale"]:
             copied_data[data_type] = getattr(obj, data_type).copy()
         elif data_type == "modifiers":
             copied_data[data_type] = [(mod.name, mod.type) for mod in obj.modifiers]
@@ -39,6 +57,8 @@ def copy_data(obj, data_type):
             copied_data[data_type] = [(con.name, con.type) for con in obj.constraints]
         elif data_type == "parent":
             copied_data[data_type] = obj.parent
+            copied_data["parent_type"] = obj.parent_type
+            copied_data["parent_inverse"] = obj.matrix_parent_inverse.copy()
         elif data_type == "custom_properties":
             copied_data[data_type] = dict(obj.items())
 
@@ -48,10 +68,25 @@ def copy_data(obj, data_type):
 def paste_data(obj, data_type):
     if obj and copied_data[data_type] is not None:
         if data_type == "transform":
-            obj.location = copied_data["location"]
-            obj.rotation_euler = copied_data["rotation"]
-            obj.scale = copied_data["scale"]
-        elif data_type in ["location", "rotation", "scale"]:
+            if copied_data["transform"]:
+                obj.location = copied_data["location"]
+                obj.rotation_mode = copied_data["rotation_mode"]  # Set rotation mode
+                if copied_data["rotation_mode"] == 'QUATERNION':
+                    obj.rotation_quaternion = copied_data["rotation"]
+                elif copied_data["rotation_mode"] == 'AXIS_ANGLE':
+                    obj.rotation_axis_angle = copied_data["rotation"]
+                else:  # Euler
+                    obj.rotation_euler = copied_data["rotation"]
+                obj.scale = copied_data["scale"]
+        elif data_type == "rotation":
+            obj.rotation_mode = copied_data["rotation_mode"]  # Set rotation mode
+            if copied_data["rotation_mode"] == 'QUATERNION':
+                obj.rotation_quaternion = copied_data["rotation"]
+            elif copied_data["rotation_mode"] == 'AXIS_ANGLE':
+                obj.rotation_axis_angle = copied_data["rotation"]
+            else:  # Euler
+                obj.rotation_euler = copied_data["rotation"]
+        elif data_type in ["location", "scale"]:
             setattr(obj, data_type, copied_data[data_type])
         elif data_type == "modifiers":
             for mod_name, mod_type in copied_data[data_type]:
@@ -66,6 +101,8 @@ def paste_data(obj, data_type):
                 con.name = con_name
         elif data_type == "parent":
             obj.parent = copied_data[data_type]
+            obj.parent_type = copied_data["parent_type"]
+            obj.matrix_parent_inverse = copied_data["parent_inverse"]
         elif data_type == "custom_properties":
             for key, value in copied_data[data_type].items():
                 obj[key] = value
